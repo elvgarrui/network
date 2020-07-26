@@ -19,7 +19,6 @@ with mock.patch.object(
     "path",
     [parentdir, os.path.join(parentdir, "module_utils/network_lsr")] + sys.path,
 ):
-    print(parentdir)
     with mock.patch.dict(
         "sys.modules",
         {"ansible": mock.Mock(), "ansible.module_utils": __import__("module_utils")},

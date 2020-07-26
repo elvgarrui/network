@@ -1,0 +1,78 @@
+# SPDX-License-Identifier: BSD-3-Clause
+---
+- name: Empty play to gather facts
+  hosts: all
+  
+- name: Set platform/version specific variables
+  include_vars: "{{ __test_vars_file }}"
+  loop:
+    - "{{ ansible_facts['os_family'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_major_version'] }}.yml"
+    - "{{ ansible_facts['distribution'] }}_{{ ansible_facts['distribution_version'] }}.yml"
+    vars:
+      __test_vars_file: "{{ role_path }}/tests/vars/integration{{ item }}"
+    when: __test_vars_file is file
+
+- name: ensure test pre-packages are installed first
+  package:
+    name: "{{ __test_pre_packages }}"
+  when: __test_pre_packages is defined
+
+- name: ensure test packages are installed
+  package:
+    name: "{{ __test_packages }}"
+  when: __test_packages is defined
+
+- name: ensure test services are enabled
+
+- name: Run test playbook
+  hosts: all
+  vars:
+    - rundir: /run/system-roles-test
+  tasks:
+    - file:
+        state: directory
+        path: /run
+
+    - shell: |
+        # set -x
+        curdir="${PWD}"
+        gitdir=""
+        for i in {1..255}
+        do
+            candidate="${curdir}/.git"
+            if [ -d "${candidate}" ]
+            then
+                gitdir=${candidate}
+                break
+            else
+                curdir=$(dirname "${curdir}")
+            fi
+        done
+        if [ -z "${gitdir}" ]
+        then
+            exit 1
+        fi
+        echo "$(dirname ${gitdir})"
+      register: testdir
+      delegate_to: localhost
+
+    - debug:
+        var: testdir
+
+    - synchronize:
+        src: "{{ testdir.stdout }}/"
+        dest: "{{ rundir }}/"
+        recursive: yes
+        delete: yes
+        rsync_opts:
+          - "--exclude=.pyc"
+          - "--exclude=__pycache__"
+
+    - block:
+        - command: "pytest {{ rundir }}/tests/integration/"
+          register: playbook_run
+      always:
+        - debug:
+            var: playbook_run.stdout_lines

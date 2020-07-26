@@ -1,0 +1,4 @@
+__test_pre_packages: [epel-release]
+__test_packages: [git, python3-pip, ansible]
+__test_services: [rsyncd]
+__test_pip_packages: [pytest]
